@@ -1,96 +1,141 @@
 import random
+import sys
+from file_pars import parse_config
+import time
+from collections import deque
 
-WIDTH = 23
-HEIGHT = 21
-ENTRY = 0,0
-EXIT = 19,14
-PERFECT = True
 
 class MazeToSmall(Exception):
     pass
 
+
 class Grid:
-    def __init__(self, height, width):
+    def __init__(self, height, width, the_entry, the_exit):
         self.height = height
         self.width = width
+        self.entry = the_entry
+        self.exit = the_exit
         self.grid = [[15 for x in range(width)] for y in range(height)]
-    
+
     def make_42(self):
         if self.width >= 9 and self.height >= 7:
             h = int(self.height / 2)
             w = int(self.width / 2)
-            
-            self.grid[h][w - 1] = 16
-            self.grid[h][w - 2] = 16
-            self.grid[h][w - 3] = 16
-            
-            self.grid[h - 1][w - 3] = 16
-            self.grid[h - 2][w - 3] = 16
-            
-            self.grid[h + 1][w - 1] = 16
-            self.grid[h + 2][w - 1] = 16
-           
+
+            self.grid[h][w - 1] = 100
+            self.grid[h][w - 2] = 100
+            self.grid[h][w - 3] = 100
+
+            self.grid[h - 1][w - 3] = 100
+            self.grid[h - 2][w - 3] = 100
+
+            self.grid[h + 1][w - 1] = 100
+            self.grid[h + 2][w - 1] = 100
+
+            self.grid[h][w + 1] = 100
+            self.grid[h][w + 2] = 100
+            self.grid[h][w + 3] = 100
+
+            self.grid[h + 1][w + 1] = 100
+            self.grid[h + 2][w + 1] = 100
+
+            self.grid[h + 2][w + 2] = 100
+            self.grid[h + 2][w + 3] = 100
+
+            self.grid[h - 1][w + 3] = 100
+            self.grid[h - 2][w + 3] = 100
+
+            self.grid[h - 2][w + 2] = 100
+            self.grid[h - 2][w + 1] = 100
+
+    def make_entry_exit(self):
+        self.grid[self.entry[0]][self.entry[1]] += 16
+        self.grid[self.exit[0]][self.exit[1]] += 16
+
+    def make_solution(self, solution):
+        for y, x in solution[1:]:
+            self.grid[y][x] += 16
 
 
-            self.grid[h][w + 1] = 16
-            self.grid[h][w + 2] = 16
-            self.grid[h][w + 3] = 16
-
-            self.grid[h + 1][w + 1] = 16
-            self.grid[h + 2][w + 1] = 16
-            
-            self.grid[h + 2][w + 2] = 16
-            self.grid[h + 2][w + 3] = 16
-            
-            self.grid[h - 1][w + 3] = 16
-            self.grid[h - 2][w + 3] = 16
-
-            self.grid[h - 2][w + 2] = 16
-            self.grid[h - 2][w + 1] = 16
-        else:
-            raise MazeToSmall("the maze is to small")
-        
-    @staticmethod
-    def r_row(array, high, i):
+    def r_row(self, array, high, i):
         row = []
-        for v in array:
-                if v & 1 or v == 16:
-                    row.extend(["███████"])
-                else:
-                    row.extend(["██", "     "])
-        row.extend(["██", "\n"])
+        for j, v in enumerate(array):
+            if v & 1 or v == 100:
+                row.extend(["█", "█", "█", "█", "█", "█", "█"])
+            elif v & 16 and self.grid[i - 1][j] & 16:
+                row.extend(["█", "█",
+                            "\033[31m█\033[0m",
+                            "\033[31m█\033[0m",
+                            "\033[31m█\033[0m",
+                            "\033[31m█\033[0m",
+                            "\033[31m█\033[0m"])
+            else:
+                row.extend(["█","█", " "," ", " ", " ", " "])
+        row.extend(["█", "█", "\n"])
         for x in range(2):
-            for v in array:
-                if v & 8 or v == 16:
-                    if v == 16:
-
-                        row.extend(["██", "\033[90m█████\033[0m"]) 
+            for j, v in enumerate(array):
+                if v & 8 or v == 100:
+                    if v == 100:
+                        row.extend(["█", "█",
+                                    "\033[90m█\033[0m",
+                                    "\033[90m█\033[0m",
+                                    "\033[90m█\033[0m",
+                                    "\033[90m█\033[0m",
+                                    "\033[90m█\033[0m"])
                     else:
-                        row.extend(["██", "     "])
+                        if v & 16:
+                            row.extend(["█", "█",
+                                        "\033[31m█\033[0m",
+                                        "\033[31m█\033[0m",
+                                        "\033[31m█\033[0m",
+                                        "\033[31m█\033[0m",
+                                        "\033[31m█\033[0m"])
+                        else:
+                            row.extend(["█", "█", " ", " ", " ", " ", " "])
                 else:
-                    row.extend(["       "])
-            row.extend(["██", "\n"])
-        if i == (high - 1): 
+                    if v & 16:
+                        if self.grid[i][j - 1] & 16:
+                            row.extend(["\033[31m█\033[0m",
+                                        "\033[31m█\033[0m",
+                                        "\033[31m█\033[0m",
+                                        "\033[31m█\033[0m",
+                                        "\033[31m█\033[0m",
+                                        "\033[31m█\033[0m",
+                                        "\033[31m█\033[0m"])
+                        else:
+                            row.extend([" ",
+                                        " ",
+                                        "\033[31m█\033[0m",
+                                        "\033[31m█\033[0m",
+                                        "\033[31m█\033[0m",
+                                        "\033[31m█\033[0m",
+                                        "\033[31m█\033[0m"])
+
+                    else:
+                        row.extend([" ", " ", " ", " ", " ", " ", " "])
+
+            row.extend(["█", "█", "\n"])
+        if i == (high - 1):
             for v in array:
                 if v & 4:
-                    row.extend(["███████"])
-            row.extend(["██", "\n"])
-        return(row)
-
+                    row.extend(["█", "█", "█", "█", "█", "█", "█"])
+            row.extend(["█", "█", "\n"])
+        return row
 
     def print_maze(self):
         visual = []
         for i, array in enumerate(self.grid):
             visual.extend(self.r_row(array, self.height, i))
         return visual
-            
+
+
 class Engine:
     def __init__(self, grid):
         self.maze = grid
 
     def dfs(self, y, x):
         lst = []
-        while(1):
+        while 1:
             moves = [(-1, 0, 1), (0, 1, 2), (0, -1, 8), (1, 0, 4)]
             random.shuffle(moves)
             flag = True
@@ -100,41 +145,93 @@ class Engine:
                 wall = move[2]
                 yyy = y + yy
                 xxx = x + xx
-                if 0 <= xxx < self.maze.width\
-                        and 0 <= yyy < self.maze.height\
-                        and self.maze.grid[yyy][xxx] == 15:
-                        self.maze.grid[y][x] -= wall
-                        if wall == 1:
-                            self.maze.grid[yyy][xxx] -= 4
-                        elif wall == 2:
-                            self.maze.grid[yyy][xxx] -= 8
-                        elif wall == 4:
-                            self.maze.grid[yyy][xxx] -= 1
-                        elif wall == 8:
-                            self.maze.grid[yyy][xxx] -= 2
-                        lst.append((y, x))
-                        y = yyy
-                        x = xxx
-                        flag = False
-                        break
+                if (
+                    0 <= xxx < self.maze.width
+                    and 0 <= yyy < self.maze.height
+                    and (self.maze.grid[yyy][xxx] == 15
+                         or self.maze.grid[yyy][xxx] == 31)
+                ):
+                    self.maze.grid[y][x] -= wall
+                    if wall == 1:
+                        self.maze.grid[yyy][xxx] -= 4
+                    elif wall == 2:
+                        self.maze.grid[yyy][xxx] -= 8
+                    elif wall == 4:
+                        self.maze.grid[yyy][xxx] -= 1
+                    elif wall == 8:
+                        self.maze.grid[yyy][xxx] -= 2
+                    lst.append((y, x))
+                    y = yyy
+                    x = xxx
+                    flag = False
+                    break
             if flag:
                 if lst:
                     y, x = lst.pop()
                 else:
                     break
+    def bfs_solver(self, y, x):
+        queue = deque([(y, x, [])])
+        visited = {(y, x)}
+        while 1:
+            p = queue.popleft()
+            y = p[0]
+            x = p[1]
+            solution = p[2]
+            if y == self.maze.exit[0] and x == self.maze.exit[1]:
+                return solution
+            nighbors = (
+                    (y - 1, x + 0, 1),
+                    (y + 1, x + 0, 4),
+                    (y + 0, x - 1, 8),
+                    (y + 0, x + 1, 2))
+            for nighbor in nighbors:
+                if (0 <= nighbor[0] < self.maze.height
+                    and 0 <= nighbor[1] < self.maze.width):
+                    if not self.maze.grid[y][x] & nighbor[2]:
+                        if (nighbor[0], nighbor[1]) not in visited:
+                            visited.add((nighbor[0], nighbor[1]))
+                            queue.append((nighbor[0], nighbor[1], solution + [(y, x)]))
+        
+                
+
+
+
+
 
 def main():
-    try:
-        grid = Grid(HEIGHT, WIDTH)
-        grid.make_42()
-        engine = Engine(grid)
-        engine.dfs(0, 0)
-        lst = grid.print_maze()
-        for x in lst:
-            print(x, end="")
-    except MazeToSmall as e:
-        print(e)
+    if len(sys.argv) == 2:
+        try:
+            config = parse_config(sys.argv[1])
+            grid = Grid(
+                    config["HEIGHT"],
+                    config["WIDTH"],
+                    (config["ENTRY_Y"], config["ENTRY_X"]),
+                    (config["EXIT_Y"], config["EXIT_X"])
+                    )
+            grid.make_42()
+            grid.make_entry_exit()
+            engine = Engine(grid)
+            engine.dfs(config["ENTRY_Y"], config["ENTRY_X"])
+            solution = engine.bfs_solver(config["ENTRY_Y"], config["ENTRY_X"])
+            for x in grid.grid:
+                print(x)
+            print("")
+            print(solution)
+            grid.make_solution(solution)
+            lst = grid.print_maze()
+            for x in lst:
+                print(x, end="")
+
+        except ValueError as e:
+            print(e)
+        except FileNotFoundError as e:
+            print(e)
+    elif len(sys.argv) == 1:
+        print("you must provide config.txt file example: python3 a_maze_ing.py config.txt")
+    else:
+        print("you must run at most one arguments example: python3 a_maze_ing.py config.txt")
+
 
 if __name__ == "__main__":
     main()
-
