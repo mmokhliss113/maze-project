@@ -56,7 +56,6 @@ class Grid:
         for y, x in solution[1:]:
             self.grid[y][x] += 16
 
-
     def r_row(self, array, high, i):
         row = []
         for j, v in enumerate(array):
@@ -130,8 +129,11 @@ class Grid:
 
 
 class Engine:
-    def __init__(self, grid):
-        self.maze = grid
+    def __init__(self, grid_array, height, width, exit_coord):
+        self.grid = grid_array
+        self.height = height
+        self.width = width
+        self.exit = exit_coord
 
     def dfs(self, y, x):
         lst = []
@@ -146,20 +148,20 @@ class Engine:
                 yyy = y + yy
                 xxx = x + xx
                 if (
-                    0 <= xxx < self.maze.width
-                    and 0 <= yyy < self.maze.height
-                    and (self.maze.grid[yyy][xxx] == 15
-                         or self.maze.grid[yyy][xxx] == 31)
+                    0 <= xxx < self.width
+                    and 0 <= yyy < self.height
+                    and (self.grid[yyy][xxx] == 15
+                         or self.grid[yyy][xxx] == 31)
                 ):
-                    self.maze.grid[y][x] -= wall
+                    self.grid[y][x] -= wall
                     if wall == 1:
-                        self.maze.grid[yyy][xxx] -= 4
+                        self.grid[yyy][xxx] -= 4
                     elif wall == 2:
-                        self.maze.grid[yyy][xxx] -= 8
+                        self.grid[yyy][xxx] -= 8
                     elif wall == 4:
-                        self.maze.grid[yyy][xxx] -= 1
+                        self.grid[yyy][xxx] -= 1
                     elif wall == 8:
-                        self.maze.grid[yyy][xxx] -= 2
+                        self.grid[yyy][xxx] -= 2
                     lst.append((y, x))
                     y = yyy
                     x = xxx
@@ -170,6 +172,7 @@ class Engine:
                     y, x = lst.pop()
                 else:
                     break
+
     def bfs_solver(self, y, x):
         queue = deque([(y, x, [])])
         visited = {(y, x)}
@@ -178,7 +181,7 @@ class Engine:
             y = p[0]
             x = p[1]
             solution = p[2]
-            if y == self.maze.exit[0] and x == self.maze.exit[1]:
+            if y == self.exit[0] and x == self.exit[1]:
                 return solution
             nighbors = (
                     (y - 1, x + 0, 1),
@@ -186,19 +189,45 @@ class Engine:
                     (y + 0, x - 1, 8),
                     (y + 0, x + 1, 2))
             for nighbor in nighbors:
-                if (0 <= nighbor[0] < self.maze.height
-                    and 0 <= nighbor[1] < self.maze.width):
-                    if not self.maze.grid[y][x] & nighbor[2]:
+                if (0 <= nighbor[0] < self.height
+                    and 0 <= nighbor[1] < self.width):
+                    if not self.grid[y][x] & nighbor[2]:
                         if (nighbor[0], nighbor[1]) not in visited:
                             visited.add((nighbor[0], nighbor[1]))
                             queue.append((nighbor[0], nighbor[1], solution + [(y, x)]))
+    
+def output_file(maze_array, solution, height, width, the_entry, the_exit):
+    with open("output_maze.txt", 'w') as output:
+        for y in range(height):
+            for x in range(width):
+                cell = maze_array[y][x]
+                if cell >= 100:
+                    output.write("F")
+                else:
+                    cell = cell & 15
+                    output.write(f"{cell:X}")
+            output.write("\n")
+        output.write("\n")
+        output.write(f"{the_entry[0]},{the_entry[1]}\n")
+        output.write(f"{the_exit[0]},{the_exit[1]}\n")
+        i = 0
+        while (i < (len(solution) - 1)):
+            y = solution[i][0]
+            x = solution[i][1]
+            y2 = solution[i + 1][0]
+            x2 = solution[i + 1][1]
+            if y == y2 and x > x2:
+                output.write("W")
+            elif y == y2 and x < x2:
+                output.write("E")
+            elif y > y2 and x == x2:
+                output.write("N") 
+            elif y < y2 and x == x2:
+                output.write("S")
+            i += 1
+        output.write("\n")
+
         
-                
-
-
-
-
-
 def main():
     if len(sys.argv) == 2:
         try:
@@ -211,17 +240,14 @@ def main():
                     )
             grid.make_42()
             grid.make_entry_exit()
-            engine = Engine(grid)
+            engine = Engine(grid.grid, grid.height, grid.width, grid.exit)
             engine.dfs(config["ENTRY_Y"], config["ENTRY_X"])
             solution = engine.bfs_solver(config["ENTRY_Y"], config["ENTRY_X"])
-            for x in grid.grid:
-                print(x)
-            print("")
-            print(solution)
             grid.make_solution(solution)
             lst = grid.print_maze()
             for x in lst:
                 print(x, end="")
+            output_file(grid.grid, solution, grid.height, grid.width, grid.entry, grid.exit)
 
         except ValueError as e:
             print(e)
