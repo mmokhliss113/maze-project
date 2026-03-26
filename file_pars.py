@@ -1,51 +1,64 @@
 def parse_config(ffile: str):
     mandatory = ["WIDTH", "HEIGHT", "ENTRY", "EXIT", "OUTPUT_FILE", "PERFECT"]
     config = {}
-    with open(ffile) as file:
-        lines = file.readlines()
-        for line in lines:
-            line = line.strip()
-            if line.startswith("#"):
-                continue
-            if not line:
-                continue
-            splited_line = line.split("=")
-            if len(splited_line) != 2:
-                raise ValueError("invalid config it must be KEY=Value")
-            key = splited_line[0].strip()
-            value = splited_line[1].strip()
-            config[key] = value
-    conf = {}
-    for k, v in config.items():
-        if k in mandatory:
-            mandatory.remove(k)
-        if k == "WIDTH" or k == "HEIGHT":
-            conf[k] = int(v)
-        elif k == "ENTRY" or k == "EXIT":
-            if ',' not in v:
-                raise ValueError("ENTRY and EXIT must be in format x,y")
-            x_y = v.split(',')
-            if k == "ENTRY":
-                conf["ENTRY_X"] = int(x_y[0])
-                conf["ENTRY_Y"] = int(x_y[1])
-            else:
-                conf["EXIT_X"] = int(x_y[0])
-                conf["EXIT_Y"] = int(x_y[1])
-        elif k == "PERFECT":
-            if v == "True":
-                conf[k] = True
-            elif v == "False":
-                conf[k] = False
-            else:
-                raise ValueError("PERFECT must be True or False")
-        elif k == "OUTPUT_FILE":
-            conf[k] = v
-    if mandatory:
-        raise ValueError("missing mandatory keys")
-    if not (0 <= conf["ENTRY_X"] < conf["WIDTH"]\
-            and 0 <= conf["ENTRY_Y"] < conf["HEIGHT"]):
-        raise ValueError("ENTRY is not logical")
-    if not (0 <= conf["EXIT_X"] < conf["WIDTH"]\
-            and 0 <= conf["EXIT_Y"] < conf["HEIGHT"]):
-        raise ValueError("EXIT is not logical")
-    return conf
+    
+    try:
+        with open(ffile, 'r') as file:
+            for line_num, line in enumerate(file, 1):
+                line = line.strip()
+                if not line or line.startswith("#"):
+                    continue
+                
+                if "=" not in line:
+                    raise ValueError(f"Line {line_num}: Invalid format. Use KEY=VALUE")
+                
+                parts = line.split("=", 1)
+                key = parts[0].strip()
+                value = parts[1].strip()
+                
+                if not value:
+                    raise ValueError(f"Line {line_num}: Key '{key}' has no value")
+                
+                config[key] = value
+
+        for key in mandatory:
+            if key not in config:
+                raise ValueError(f"Missing mandatory key: {key}")
+
+        conf = {}
+        conf["WIDTH"] = int(config["WIDTH"])
+        conf["HEIGHT"] = int(config["HEIGHT"])
+        conf["OUTPUT_FILE"] = config["OUTPUT_FILE"]
+        perfect_value = config["PERFECT"].lower()
+        if perfect_value == "true":
+            conf["PERFECT"] = True
+        elif perfect_value == "false":
+            conf["PERFECT"] = False
+        else:
+            raise ValueError("PERFECT must be either 'True' or 'False'")
+
+        
+        for k in ["ENTRY", "EXIT"]:
+            coords = config[k].split(',')
+            if len(coords) != 2:
+                raise ValueError(f"{k} must be 'x,y' format")
+            conf[f"{k}_X"] = int(coords[0].strip())
+            conf[f"{k}_Y"] = int(coords[1].strip())
+        
+        if conf["ENTRY_X"] == conf["EXIT_X"] and conf["ENTRY_Y"] == conf["EXIT_Y"]:
+            raise ValueError("ENTRY and EXIT cannot be the same point!")
+        if conf["WIDTH"] < 5 or conf["HEIGHT"] < 5:
+            raise ValueError("Maze dimensions too small (min 5x5)")
+            
+        if not (0 <= conf["ENTRY_X"] < conf["WIDTH"] and 0 <= conf["ENTRY_Y"] < conf["HEIGHT"]):
+            raise ValueError("ENTRY coordinates are outside the maze")
+            
+        if not (0 <= conf["EXIT_X"] < conf["WIDTH"] and 0 <= conf["EXIT_Y"] < conf["HEIGHT"]):
+            raise ValueError("EXIT coordinates are outside the maze")
+
+        return conf
+
+    except FileNotFoundError:
+        raise FileNotFoundError(f"Config file '{ffile}' not found.")
+    except ValueError as e:
+        raise ValueError(f"Config Error: {e}")
